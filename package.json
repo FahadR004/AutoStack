@@ -1,0 +1,19 @@
+{
+  "name": "automern",
+  "version": "1.0.0",
+  "description": "Automated Setup for Your MERN Project",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FahadR004/AutoMERN.git"
+  },
+  "author": "Fahad Rasheed",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FahadR004/AutoMERN/issues"
+  },
+  "homepage": "https://github.com/FahadR004/AutoMERN#readme"
+}
