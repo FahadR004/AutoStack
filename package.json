@@ -2,6 +2,7 @@
   "name": "automern",
   "version": "1.0.0",
   "description": "Automated Setup for Your MERN Project",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -15,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/FahadR004/AutoMERN/issues"
   },
-  "homepage": "https://github.com/FahadR004/AutoMERN#readme"
+  "homepage": "https://github.com/FahadR004/AutoMERN#readme",
+  "dependencies": {
+    "inquirer": "^13.1.0"
+  }
 }
