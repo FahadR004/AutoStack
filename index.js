@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises'
 import { select, input } from '@inquirer/prompts'
 import { createSpinner } from 'nanospinner';
 import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { access, readFile,writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
@@ -40,6 +41,32 @@ const readAFile = async (name) => {
   }
 } 
 
+const copyFile = async (srcPath, destPath, modify=false, modificationFn=null) => {
+    const data = await readAFile(srcPath);
+    if (modify) {
+      const modifiedData = modificationFn(data);
+      await writeFile(destPath, modifiedData);
+      return;
+    }
+    await writeFile(destPath, data);
+}
+
+async function installPackages(packageName, installationPath) {
+  const spinner = createSpinner(`Installing ${packageName}...`).start();
+  return new Promise((resolve, reject) => {
+    exec(`npm install ${packageName}`, { cwd: installationPath }, (error, stdout) => {
+      if (error) {
+        spinner.error({ text: `Failed to install ${packageName}` });
+        reject(error);
+      } else {
+        spinner.success({ text: `${packageName} installed successfully!` });
+        resolve(stdout);
+      }
+    });
+  });
+}
+
+
 // Backend Creation
 const createFrontend = () => {
   fs.mkdir('./frontend', { recursive: true}, (err) => {
@@ -51,22 +78,29 @@ const createFrontend = () => {
 
 const createBackend = async (stack) => {
   try {
-    console.log(`.${PROJECT_NAME}/backend/src`, 'DEBUG')
+    console.log('Creating folders...');
     await mkdir(`.${PROJECT_NAME}/backend/src`, { recursive: true});
-
     await mkdir(`.${PROJECT_NAME}/backend/src/controllers`);
     await mkdir(`.${PROJECT_NAME}/backend/src/routes`);
     await mkdir(`.${PROJECT_NAME}/backend/src/models`);
     await mkdir(`.${PROJECT_NAME}/backend/src/config`);
     await mkdir(`.${PROJECT_NAME}/backend/src/middleware`);
-
-    execSync('npm init -y', { cwd: `.${PROJECT_NAME}/backend/src`});
-
-    const serverData = await readAFile(`./templates/${stack}/backend/src/server.js`);
-
-    await writeFile(`.${PROJECT_NAME}/backend/src/server.js`, serverData);
-
-    // const spinner = createSpinner('Checking answer...').start();
+    console.log('Folders created!');
+    
+    execSync('npm init -y', { cwd: `.${PROJECT_NAME}/backend`});
+    copyFile(`./templates/${stack}/backend/server.js`, `.${PROJECT_NAME}/backend/server.js`); // For main file
+    // copyFile(`./templates/${stack}/backend/src/config/db.js`, `.${PROJECT_NAME}/backend/config/db.js`); // For db.js
+    copyFile( // For package.json
+      `.${PROJECT_NAME}/backend/package.json`, 
+      `.${PROJECT_NAME}/backend/package.json`, 
+        true, 
+        (data) => { // The modificationFn
+          const jsonObject = JSON.parse(data);
+          jsonObject['type'] = 'module';
+          return JSON.stringify(jsonObject, null, 4); // 4 is for indentation whereas null is for the replacer fn which we don't require  
+    });   
+    
+    installPackages('express mongoose dotenv nodemon redis', `.${PROJECT_NAME}/backend`);
 
   } catch(err) {
     console.error("Unable to create backend folder", err);
@@ -78,10 +112,10 @@ const start = async () => {
   console.log(`
      This is AutoMERN!
      An NPM package, designed to automate the setup of your full-stack projects!
-    `)
+  `);
 
   PROJECT_NAME = await input({ message: 'Please enter project name: ', default: '.'});
-  if (existsSync(PROJECT_NAME)) {
+  if (existsSync(PROJECT_NAME && PROJECT_NAME !== '.')) {
       console.log("A directory with this name already exists. Creating a separate directory...");
       await mkdir(`./${PROJECT_NAME}-automern`);
       PROJECT_NAME = '/' + PROJECT_NAME + '-automern';
