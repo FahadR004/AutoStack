@@ -1,4 +1,4 @@
-import { Note } from "./noteModel.js"
+import { Note } from "../models/noteModel.js"
 import mongoose from "mongoose"
 
 // Get All Notes

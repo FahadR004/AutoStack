@@ -1,4 +1,4 @@
-import { User } from "./userModel.js"
+import { User } from "../models/userModel.js"
 import mongoose from "mongoose"
 
 // Get All Users

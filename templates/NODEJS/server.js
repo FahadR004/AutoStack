@@ -1,7 +1,8 @@
 import express from 'express' 
-import { connectDB } from './config/database.js';
+import { connectDB } from './src/config/db.js';
 import dotenv from 'dotenv'
-import noteRoutes from './noteRoutes.js';
+import noteRoutes from './routes/noteRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import rateLimiter from './middleware/rateLimiter.js';
 import cors from 'cors';
 
