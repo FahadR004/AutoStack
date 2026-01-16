@@ -44,10 +44,10 @@ const BKEND_FRAMEWORKS = {
 }
 
 const FRONTEND_FRAMEWORKS = {
-  "VANILLA": {
-    "COLOR": yellow,
-    "CSS_FILE": "style.css", // No default CSS file created
-  },
+  // "VANILLA": {
+  //   "COLOR": yellow,
+  //   "CSS_FILE": "style.css", // No default CSS file created
+  // },
   "VUE": {
     "COLOR": green,
     "CSS_FILE": "style.css", // Typically in src/assets/ or src/
@@ -69,16 +69,16 @@ const FRONTEND_FRAMEWORKS = {
   //   "CSS_FILE": null, // No external CSS - uses CSS-in-JS
   //   // "TAILWIND_SETUP": "Install @lit/tailwindcss, use in component styles property"
   // },
-  // "SVELTE": {
-  //   "COLOR": red,
-  //   "CSS_FILE": "app.css", // In src/ directory
-  //   // "TAILWIND_SETUP": "Add @import to app.css, install @sveltejs/add-postcss"
-  // },
-  // "SOLID": {
-  //   "COLOR": blue,
-  //   "CSS_FILE": "index.css", // In src/ directory
-  //   // "TAILWIND_SETUP": "Add @import to index.css, configure tailwind.config.js"
-  // },
+  "SVELTE": {
+    "COLOR": red,
+    "CSS_FILE": "app.css", // In src/ directory
+    // "TAILWIND_SETUP": "Add @import to app.css, install @sveltejs/add-postcss"
+  },
+  "SOLID": {
+    "COLOR": blue,
+    "CSS_FILE": "index.css", // In src/ directory
+    // "TAILWIND_SETUP": "Add @import to index.css, configure tailwind.config.js"
+  },
   // "QWIK": {
   //   "COLOR": blueBright,
   //   "CSS_FILE": "global.css", // In src/ directory
@@ -473,7 +473,7 @@ const dbConfigurations = async () => {
           const connStr = await prompts.password({
             message: 'Please enter your MongoDB connection string: '
           })
-          createFile(`.${PROJECT_PATH}/backend/src/.env`, `PORT=5000\nMONGO_URI=${connStr}`)
+          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000\nMONGO_URI=${connStr}`)
           return 'mongoose'
         
         case 'MYSQL':
@@ -486,7 +486,7 @@ const dbConfigurations = async () => {
           const mysqlHost = await prompts.password({
             message: 'Please enter your MySQL host: '
           })
-          createFile(`.${PROJECT_PATH}/backend/src/.env`, `PORT=5000\nUSER=${mysqlUser}\nPASSWORD=${mysqlPass}\nHOST=${mysqlHost}`)
+          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000\nUSER=${mysqlUser}\nPASSWORD=${mysqlPass}\nHOST=${mysqlHost}`)
           return 'mysql2';
       
         case 'POSTGRESQL':
@@ -499,12 +499,24 @@ const dbConfigurations = async () => {
           const postgresHost = await prompts.password({
             message: 'Please enter your PostgreSQL host: '
           })
-          createFile(`.${PROJECT_PATH}/backend/src/.env`, `PORT=5000\nUSER=${postgresUser}\nPASSWORD=${postgresPass}\nHOST=${postgresHost}`)
-          return // POSTGRESQL Lib
+          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000\nUSER=${postgresUser}\nPASSWORD=${postgresPass}\nHOST=${postgresHost}`)
+          return 'pg'
       }
     } else {
-      console.log("Okay, environment variables have not been set. The file will be created and you can edit accordingly..");
-      createFile(`.${PROJECT_PATH}/backend/src/.env`, '');
+      console.log("Okay, example environment variables have been set. The file will be created and you can edit accordingly..");
+      switch (DATABASE) {
+        case 'MONGODB':
+          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000`);
+          return 'mongoose'
+        
+        case 'MYSQL':
+          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000`);
+          return 'mysql2';
+      
+        case 'POSTGRESQL':
+          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000`);
+          return 'pg'
+      }
     }
 }
 
@@ -535,14 +547,14 @@ const createBackend = async () => {
         })
         if (prompts.isCancel(ENV_CHOICE)) return cancel() 
 
-        const dbPkg = await dbConfigurations(); 
+        const dbPkg = await dbConfigurations() ?? ""; 
         
         // 7. Copy Template Directory and Other Files        
         const backendPath = `.${PROJECT_PATH}/backend/src`;
         
         const spinner = createSpinner(whiteBright("COPYING TEMPLATE DIRECTORY AND ITS CONTENTS...\n")).start();
-        await copyDirectory(`./templates/${BACKEND}/${DATABASE}`, backendPath);
-        await copyDirectory(`./templates/${BACKEND}/common`, backendPath);          
+        await copyDirectory(`./templates/backend/${BACKEND}/${DATABASE}`, backendPath);
+        await copyDirectory(`./templates/backend/${BACKEND}/common`, backendPath);          
         spinner.success({ text: 'COPIED TEMPLATE DIRECTORY!' });
       
         copyFile( // For package.json
@@ -551,15 +563,16 @@ const createBackend = async () => {
             true, 
             (data) => { // The modificationFn
               const jsonObject = JSON.parse(data);
+              jsonObject['main'] = 'src/index.js'
               jsonObject['type'] = 'module';
               jsonObject['scripts'] = {
-                'dev': 'nodemon server.js',
-                'start': 'node server.js'
+                'dev': 'nodemon src/index.js',
+                'start': 'node src/index.js'
               }
               return JSON.stringify(jsonObject, null, 4); // 4 is for indentation whereas null is for the replacer fn which we don't require  
         });  
         
-        await installPackages(`express ${dbPkg} dotenv nodemon redis`, `.${PROJECT_PATH}/backend`);
+        await installPackages(`express ${dbPkg} dotenv nodemon redis cors`, `.${PROJECT_PATH}/backend`);
         console.log(greenBright("\nBACKEND CREATED!"));
       break;
 
@@ -638,9 +651,9 @@ const createFrontend = async () => {
   
   const fileName = FRONTEND_TECHNOLOGIES[baseTech];
   if (!fileName) {
-
-  }
-  createFile(`.${PROJECT_PATH}/frontend/src/${fileName}`, '@import "tailwindcss"');
+    // handle Lit projects - TO-DO
+  } 
+  createFile(`.${PROJECT_PATH}/frontend/src/${fileName}`, '@import "tailwindcss;"');
 
 }
 
@@ -654,15 +667,13 @@ ${blueBright('---------------------------- Supported Technologies --------------
 ╔═════════════════════════╦═════════════════════════╦═════════════════════════╗
 ║        FRONTEND         ║         BACKEND         ║        DATABASE         ║
 ╠═════════════════════════╬═════════════════════════╬═════════════════════════╣
-║         Vanilla         ║         Node.js         ║        MongoDB          ║
-║           Vue           ║          Flask          ║       PostgreSQL        ║
-║          React          ║         FastAPI         ║         MySQL           ║
-║        React-SWC        ║                         ║                         ║
-║         Preact          ║                         ║                         ║
-║           Lit           ║                         ║                         ║
-║         Svelte          ║                         ║                         ║
-║          Solid          ║                         ║                         ║
-║          Qwik           ║                         ║                         ║
+║      Vanilla (JS/TS)    ║         Node.js         ║        MongoDB          ║
+║        Vue (JS/TS)      ║          Flask          ║       PostgreSQL        ║
+║       React (JS/TS)     ║         FastAPI         ║         MySQL           ║
+║      React-SWC (JS/TS)  ║                         ║                         ║
+║       Preact (JS/TS)    ║                         ║                         ║
+║        Svelte (JS/TS)   ║                         ║                         ║
+║       Solid (JS/TS)     ║                         ║                         ║
 ╚═════════════════════════╩═════════════════════════╩═════════════════════════╝
    `);
 
@@ -741,7 +752,7 @@ ${blueBright('---------------------------- Supported Technologies --------------
 
     PKG_MGR = new PackageManagerCommands(pkg_mgr);
   
-  // await createBackend();
+  await createBackend();
   await createFrontend();
 }
 

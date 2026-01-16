@@ -3,16 +3,16 @@ from MDB_config import app, db
 from models import serialize_user, serialize_note
 from bson import ObjectId
 
-@app.route("/", methods=["GET"]) 
+@app.route("/autostack", methods=["GET"]) 
 def autostack():
     message = """ 
         Congrats! You have successfully set up your full-stack project!
-        If you're reading this message, it means your frontend and backend are connected and running!
-        
+        If you're reading this message, it means your frontend and backend are completely connected!
+        You are ready to create your next big project!
 """
-    return jsonify({"message": message}), 200
+    return jsonify({"message": message, "backend": "Flask", "database": "MongoDB", "filepath": 'backend/main.py'}), 200
 
-# Users
+# Example User REST APIs
 @app.route("/get-users", methods=["GET"])
 def get_users():
     users = list(db.users.find())
@@ -75,7 +75,7 @@ def delete_user(user_id):
     return jsonify({"message": "User Deleted"}), 200
 
 
-# Notes
+# Example Notes REST APIs
 @app.route("/get-notes", methods=["GET"])
 def get_notes():
     notes = list(db.notes.find())
@@ -135,7 +135,3 @@ def delete_note(note_id):
         return jsonify({"message": "Note not found"}), 404
 
     return jsonify({"message": "Note Deleted"}), 200
-
-
-if __name__ == "__main__":
-    app.run(debug=True)

@@ -2,14 +2,14 @@ from flask import request, jsonify
 from config import app, db
 from models import User, Note
 
-@app.route("/", methods=["GET"]) 
+@app.route("/autostack", methods=["GET"]) 
 def autostack():
     message = """ 
         Congrats! You have successfully set up your full-stack project!
-        If you're reading this message, it means your frontend and backend are connected and running!
-        
+        If you're reading this message, it means your frontend and backend are completely connected!
+        You are ready to create your next big project!
 """
-    return jsonify({"message": message}), 200
+    return jsonify({"message": message, "backend": "Flask", "database": "PostgreSQL", "filepath": 'backend/main.py'}), 200
 
 # These are example user REST APIs
 @app.route("/get-users", methods=["GET"])
@@ -132,12 +132,3 @@ def delete_note(note_id):
         return jsonify({"message": str(e)}), 400
 
     return jsonify({"message": "Note Deleted"}), 200
-
-
-
-if __name__ == "__main__":
-
-    with app.app_context():
-        db.create_all()
-
-    app.run(debug = True)
