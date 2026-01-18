@@ -2,8 +2,7 @@
 
 import * as fs from 'node:fs/promises'
 import { createSpinner } from 'nanospinner';
-import { execSync } from 'node:child_process';
-import { exec } from 'node:child_process';
+import { exec, execSync } from 'node:child_process';
 import {  readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +13,7 @@ import mri from 'mri';
 import figlet from 'figlet'
 import { promisify } from 'node:util';
 import { platform } from 'os';
+import PackageManagerCommands from '../lib/PackageManagerClass.js';
 
 const { 
   yellow,
@@ -26,7 +26,6 @@ const {
   whiteBright,
   greenBright,
   blueBright,
-  redBright,
   dim,
   italic
 } = colors
@@ -67,32 +66,37 @@ const FRONTEND_FRAMEWORKS = {
   // "LIT": {
   //   "COLOR": redBright,
   //   "CSS_FILE": null, // No external CSS - uses CSS-in-JS
-  //   // "TAILWIND_SETUP": "Install @lit/tailwindcss, use in component styles property"
   // },
   "SVELTE": {
     "COLOR": red,
     "CSS_FILE": "app.css", // In src/ directory
-    // "TAILWIND_SETUP": "Add @import to app.css, install @sveltejs/add-postcss"
   },
   "SOLID": {
     "COLOR": blue,
-    "CSS_FILE": "index.css", // In src/ directory
-    // "TAILWIND_SETUP": "Add @import to index.css, configure tailwind.config.js"
+    "CSS_FILE": "App.css", // In src/ directory
   },
   // "QWIK": {
   //   "COLOR": blueBright,
   //   "CSS_FILE": "global.css", // In src/ directory
-  //   // "TAILWIND_SETUP": "Add @import to global.css, configure tailwind.config.js"
   //}
 }
 const DATABASES = {
     "MONGODB" : {
+      "NODEJS_LIB": "mongoose", 
+      "FLASK_LIB": "",
+      "FASTAPI_LIB": "",
       "COLOR": green
     },
     "MYSQL": {
+      "NODEJS_LIB": 'mysql2',
+      "FLASK_LIB": "",
+      "FASTAPI_LIB": "",
       "COLOR": yellow
     },
     "POSTGRESQL" : {
+      "NODEJS_LIB": 'pg',
+      "FLASK_LIB": "",
+      "FASTAPI_LIB": "",
       "COLOR": blue
     }
 }
@@ -118,9 +122,11 @@ const PACKAGE_MANAGERS = {
    }
 }
 
-const _filename = fileURLToPath(import.meta.url);
-const _dirname = dirname(_filename);
-const TEMPLATES_DIR = join(_dirname, '../templates');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const TEMPLATES_DIR = join(__dirname, '../templates');
+const CWD = process.cwd();
+
 // const templatePath = join(TEMPLATES_DIR, stack, 'backend/server.js');
 // const destPath = join(PROJECT_PATH, 'backend/server.js');
 
@@ -129,229 +135,10 @@ let PROJECT_PATH;
 let FRONTEND;
 let DATABASE;
 let BACKEND;
-let PKG_MGR;
+let PKG_MGR_BK;
+let PKG_MGR_FD;
 let ENV_CHOICE;
 let isTerminating;
-let CWD = process.cwd();
-
-class PackageManagerCommands {
-  constructor(manager) {
-    this.manager = manager;
-    this.isWindows = platform() === 'win32';
-  }
-
-  init() {
-    const commands = {
-      npm: 'npm init -y',
-      yarn: 'yarn init -y',
-      pnpm: 'pnpm init',
-      bun: 'bun init -y',
-      pip: null, // No need for init in python. We create venv.
-      deno: 'deno init'
-    };
-    return commands[this.manager];
-  }
-
-  install(packages = [], dev = false) {
-    if (packages.length === 0) {
-      const commands = {
-        npm: 'npm install',
-        yarn: 'yarn install',
-        pnpm: 'pnpm install',
-        bun: 'bun install',
-        pip: 'pip install -r requirements.txt', // Not really needed for our use-case yet
-        deno: null 
-      };
-      return commands[this.manager];
-    }
-
-    const pkgString = packages.join(' ');
-    
-    switch (this.manager) {
-      case 'npm':
-        return `npm install ${dev ? '-D ' : ''}${pkgString}`;
-      
-      case 'yarn':
-        return `yarn add ${dev ? '-D ' : ''}${pkgString}`;
-      
-      case 'pnpm':
-        return `pnpm add ${dev ? '-D ' : ''}${pkgString}`;
-      
-      case 'bun':
-        return `bun add ${dev ? '-d ' : ''}${pkgString}`;
-      
-      case 'pip': 
-        return `pip install ${pkgString}`; // No dev dependencies in pip
-      
-      case 'deno':
-        return null; // Deno doesn't install packages, imports via URLs
-      
-      default:
-        throw new Error(`Unknown package manager: ${this.manager}`);
-    }
-  }
-
-  run(script) {
-    const commands = {
-      npm: `npm run ${script}`,
-      yarn: `yarn ${script}`,
-      pnpm: `pnpm ${script}`,
-      bun: `bun ${script}`,
-      pip: this.getPythonRunCommand(script),
-      deno: `deno task ${script}`
-    };
-    return commands[this.manager];
-  }
-
-  execute(command) {
-    const commands = {
-      npm: `npx ${command}`,
-      yarn: `yarn dlx ${command}`,
-      pnpm: `pnpm dlx ${command}`,
-      bun: `bunx ${command}`,
-      pip: null, // No equivalent
-      deno: `deno run ${command}`
-    };
-    return commands[this.manager];
-  }
-
-  create(template) {
-    const commands = {
-      npm: `npm create vite@latest ${template}`,
-      yarn: `yarn create vite ${template}`,
-      pnpm: `pnpm create vite ${template}`,
-      bun: `bun create vite ${template}`,
-      pip: this.createVirtualEnv(),
-      deno: `deno init --npm vite ${template}`
-    };
-    return commands[this.manager];
-  }
-
-   getPythonCommand() {
-      const pythonCommands = ['python3', 'python', 'py'];
-      for (const cmd of pythonCommands) {
-        try {
-          execSync(`${cmd} --version`, { stdio: 'ignore' });
-          return cmd;
-        } catch {
-          continue;
-        }
-      }    
-      throw new Error('Python not found. Please install Python 3.7+');
-    }
-
-   getPythonVersion() {
-      try {
-        const pythonCmd = this.getPythonCommand();
-        const version = execSync(`${pythonCmd} --version`, { encoding: 'utf8' });
-        const match = version.match(/Python (\d+)\.(\d+)/);
-        if (match) {
-          return {
-            major: parseInt(match[1]),
-            minor: parseInt(match[2]),
-            full: `${match[1]}.${match[2]}`
-          };
-        }
-      } catch (error) {
-        throw new Error('Could not detect Python version');
-      }
-    }
-
-    getPythonRunCommand(script) {
-      const pythonCmd = this.getPythonCommand();
-      if (this.isWindows) {
-        return `.venv\\Scripts\\activate && ${pythonCmd} ${script}`;
-      } else {
-        return `source .venv/bin/activate && ${pythonCmd} ${script}`;
-      }
-    }
-
-  // Create Python virtual environment (handles all cases)
-  createVirtualEnv(venvName = '.venv') {
-    const pythonCmd = this.getPythonCommand();
-    const version = this.getPythonVersion();
-    
-    // Python 3.3+ has venv built-in
-    if (version.major >= 3 && version.minor >= 3) {
-      return `${pythonCmd} -m venv ${venvName}`;
-    }
-    
-    // Older Python versions (fallback to virtualenv)
-    // User needs to have virtualenv installed
-    return `${pythonCmd} -m virtualenv ${venvName}`;
-  }
-
-  // Activate virtual environment command
-  activateVenv(venvName = '.venv') {
-    if (this.manager !== 'pip') {
-      throw new Error('activateVenv is only for Python (pip)');
-    }
-
-    if (this.isWindows) {
-      // Windows: multiple possible paths
-      return [
-        `${venvName}\\Scripts\\activate.bat`,      // cmd.exe
-        `${venvName}\\Scripts\\Activate.ps1`,      // PowerShell
-        `${venvName}\\Scripts\\activate`           // Git Bash
-      ];
-    } else {
-      // Unix/Linux/Mac
-      return [`source ${venvName}/bin/activate`];
-    }
-  }
-
-  // Get activation command as string
-  getActivateCommand(venvName = '.venv') {
-    const commands = this.activateVenv(venvName);
-    
-    if (this.isWindows) {
-      // Try to detect shell
-      const shell = process.env.SHELL || process.env.ComSpec || '';
-      
-      if (shell.includes('powershell') || shell.includes('pwsh')) {
-        return commands[1]; // PowerShell
-      } else if (shell.includes('bash')) {
-        return commands[2]; // Git Bash
-      } else {
-        return commands[0]; // cmd.exe (default)
-      }
-    } else {
-      return commands[0]; // Unix
-    }
-  }
-
-  // Install packages with venv activated
-  installWithVenv(packages = [], venvName = '.venv') {
-    if (this.manager !== 'pip') {
-      throw new Error('installWithVenv is only for Python (pip)');
-    }
-
-    const activateCmd = this.getActivateCommand(venvName);
-    const installCmd = this.install(packages);
-    
-    // Chain commands
-    if (this.isWindows) {
-      return `${activateCmd} && ${installCmd}`;
-    } else {
-      return `${activateCmd} && ${installCmd}`;
-    }
-  }
-
-  // Freeze requirements (pip freeze > requirements.txt)
-  freezeRequirements(venvName = '.venv') {
-    if (this.manager !== 'pip') {
-      throw new Error('freezeRequirements is only for Python (pip)');
-    }
-
-    const activateCmd = this.getActivateCommand(venvName);
-    
-    if (this.isWindows) {
-      return `${activateCmd} && pip freeze > requirements.txt`;
-    } else {
-      return `${activateCmd} && pip freeze > requirements.txt`;
-    }
-  }
-}
 
 const terminate = async () => { // To be checked
     if (isTerminating) return; 
@@ -359,8 +146,7 @@ const terminate = async () => { // To be checked
 
     if (PROJECT_PATH === undefined) return;
 
-    console.log(yellow('\n\n⚠️  Installation interrupted!'));
-    console.log(dim('Removing partial installation...'));
+    console.log(dim('\nRemoving partial installation...'));
      if (PROJECT_NAME && existsSync(join(CWD, PROJECT_PATH))) {
         if (PROJECT_PATH === '') { // Empty strings
           await fs.rm(join(CWD, 'frontend'), { recursive: true, force: true });
@@ -379,10 +165,10 @@ process.on('SIGINT', terminate); // CTRL + C
 
 process.on('SIGTERM', terminate); // Other termination signals 
 
-// process.on('uncaughtException', (error) => {
-//   console.error('\nUnexpected error:', error.message);
-//   terminate();
-// });
+process.on('uncaughtException', (error) => {
+  console.error('\nUnexpected error:', error.message);
+  terminate();
+});
 
 const isValidProjectName = (name) => {
   // Allows: letters, numbers, hyphens, underscores, dots
@@ -430,40 +216,30 @@ const copyFile = async (srcPath, destPath, modify=false, modificationFn=null) =>
     await writeFile(destPath, data);
 }
 
-const copyDirectory = async (src, dest) => {
-  await fs.cp(src, dest, { recursive: true });
+const prependToFile = async (destPath, content) => {
+  try {
+    const existing = await readFile(destPath, 'utf8');
+    await writeFile(destPath, content + '\n' + existing, 'utf8');
+  } catch (error) {
+    console.error('Error prepending to file:', error);
+    terminate();
+  }
 };
 
-const installPackages = async (packageName, installationPath) => {
-  const spinner = createSpinner(`Installing ${packageName}...`).start();
-  return new Promise((resolve, reject) => {
-    exec(`npm install ${packageName}`, { cwd: installationPath }, (error, stdout) => {
-      if (error) {
-        spinner.error({ text: `Failed to install ${packageName}` });
-        reject(error);
-      } else {
-        spinner.success({ text: `${packageName} installed successfully!` });
-        resolve(stdout);
-      }
-    });
-  });
-}
+const copyDirectory = async (src, dest) => {
+  await fs.cp(src, dest, { recursive: true, force: true});
+};
 
-async function runCommand(command, cwd, loadingDesc, successDesc, errorDesc) {
-  const execPromise = promisify(exec);
-  const spinner = createSpinner(loadingDesc).start();
+const runWithSpinner = async (description, asyncFn) => {
+  const spinner = createSpinner(description).start();
   try {
-    // Use an explicit, reliable shell. On Windows prefer the COMSPEC or PowerShell,
-    // otherwise use /bin/sh. This avoids spawn ENOENT when cmd.exe path is unavailable.
-    const isWin = platform() === 'win32';
-    const shell = isWin ? (process.env.ComSpec || 'powershell.exe') : '/bin/sh';
-    await execPromise(command, { cwd: cwd, shell });
-    spinner.success({ text: `${successDesc} ✓` });
+    await asyncFn();
+    spinner.success({ text: `${description}` });
   } catch (error) {
-    spinner.error({ text: `${errorDesc} ✗` });
+    spinner.error({ text: `${description}` });
     throw error;
   }
-}
+};
 
 const dbConfigurations = async () => {
    
@@ -473,8 +249,8 @@ const dbConfigurations = async () => {
           const connStr = await prompts.password({
             message: 'Please enter your MongoDB connection string: '
           })
-          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000\nMONGO_URI=${connStr}`)
-          return 'mongoose'
+          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000\nMONGO_URI=${connStr}`);
+          break;
         
         case 'MYSQL':
           const mysqlUser = await prompts.password({
@@ -487,8 +263,8 @@ const dbConfigurations = async () => {
             message: 'Please enter your MySQL host: '
           })
           createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000\nUSER=${mysqlUser}\nPASSWORD=${mysqlPass}\nHOST=${mysqlHost}`)
-          return 'mysql2';
-      
+          break;
+          
         case 'POSTGRESQL':
           const postgresUser = await prompts.password({
             message: 'Please enter your PostgreSQL username: '
@@ -499,28 +275,29 @@ const dbConfigurations = async () => {
           const postgresHost = await prompts.password({
             message: 'Please enter your PostgreSQL host: '
           })
-          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000\nUSER=${postgresUser}\nPASSWORD=${postgresPass}\nHOST=${postgresHost}`)
-          return 'pg'
+          createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000\nUSER=${postgresUser}\nPASSWORD=${postgresPass}\nHOST=${postgresHost}`);
+          break;
       }
+      return DATABASES[DATABASE][`${BACKEND}_LIB`];
+
     } else {
-      console.log("Okay, example environment variables have been set. The file will be created and you can edit accordingly..");
+      console.log("Okay, example environment variables have not been set. The file will be created and you can edit accordingly..");
       switch (DATABASE) {
         case 'MONGODB':
           createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000`);
-          return 'mongoose'
         
         case 'MYSQL':
           createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000`);
-          return 'mysql2';
       
         case 'POSTGRESQL':
           createFile(`.${PROJECT_PATH}/backend/.env`, `PORT=5000`);
-          return 'pg'
       }
+      return DATABASES[DATABASE][`${BACKEND}_LIB`];
     }
 }
 
 const cancel = () => {
+    prompts.cancel(yellow("Installation Interrupted"))
     terminate();
 }
 
@@ -534,7 +311,7 @@ const createBackend = async () => {
        
         // 5. Initialize Backend
         console.log(whiteBright("\nINITIALIZING BACKEND...\n"))
-        execSync(PKG_MGR.init(), { cwd: `.${PROJECT_PATH}/backend`});
+        execSync(PKG_MGR_BK.init(), { cwd: `.${PROJECT_PATH}/backend`});
 
         // 6. Ask user for environment variables selection
         ENV_CHOICE = await prompts.select({
@@ -550,12 +327,15 @@ const createBackend = async () => {
         const dbPkg = await dbConfigurations() ?? ""; 
         
         // 7. Copy Template Directory and Other Files        
-        const backendPath = `.${PROJECT_PATH}/backend/src`;
-        
-        const spinner = createSpinner(whiteBright("COPYING TEMPLATE DIRECTORY AND ITS CONTENTS...\n")).start();
-        await copyDirectory(`./templates/backend/${BACKEND}/${DATABASE}`, backendPath);
-        await copyDirectory(`./templates/backend/${BACKEND}/common`, backendPath);          
-        spinner.success({ text: 'COPIED TEMPLATE DIRECTORY!' });
+        const backendPath_js = `.${PROJECT_PATH}/backend/src`;
+        console.log('\n')
+        await runWithSpinner(
+          whiteBright("COPYING TEMPLATE DIRECTORY"),
+          async () => {
+            await copyDirectory(join(TEMPLATES_DIR, 'backend', BACKEND, DATABASE), backendPath_js);
+            await copyDirectory(join(TEMPLATES_DIR, 'backend', BACKEND, 'common'), backendPath_js);
+          }
+        );
       
         copyFile( // For package.json
           `.${PROJECT_PATH}/backend/package.json`, 
@@ -572,7 +352,12 @@ const createBackend = async () => {
               return JSON.stringify(jsonObject, null, 4); // 4 is for indentation whereas null is for the replacer fn which we don't require  
         });  
         
-        await installPackages(`express ${dbPkg} dotenv nodemon redis cors`, `.${PROJECT_PATH}/backend`);
+        await runWithSpinner('Installing backend packages...', async () => {
+          const execPromise = promisify(exec);
+          const packages = ['express', dbPkg, 'dotenv', 'nodemon', 'redis', 'cors'].filter(Boolean);
+          const command = PKG_MGR_BK.install(packages);
+          await execPromise(command, { cwd: `.${PROJECT_PATH}/backend` });
+        });
         console.log(greenBright("\nBACKEND CREATED!"));
       break;
 
@@ -581,17 +366,49 @@ const createBackend = async () => {
          await mkdir(`.${PROJECT_PATH}/backend`, { recursive: true });
 
          // 5. Create virtual environment 
-         PKG_MGR.createVirtualEnv('.venv');
+         await runWithSpinner(whiteBright("CREATING VIRTUAL ENVIRONMENT"), async () => {
+           const createVenvCmd = PKG_MGR_BK.createVirtualEnv('.venv');
+           const execPromise = promisify(exec);
+           await execPromise(createVenvCmd, { cwd: `.${PROJECT_PATH}/backend`, shell: true });
+         });
 
-         // 6. Activate virtual environment
-         PKG_MGR.activateVenv('.venv')
+         // 6. Ask if user wants to configure .env file. If yes, configure. Else, create with default values.
+        ENV_CHOICE = await prompts.select({
+          message: `Do you want to configure your environment variables right now? (recommended):
+          Or do it later?`,
+          options: [
+            {label: "Yes (Do it now)", value: "Yes"},
+            {label: "No (I'll do it later)", value: "No"}
+          ],
+        })
+        if (prompts.isCancel(ENV_CHOICE)) return cancel() 
+        
+        const flask_pkg = await dbConfigurations();
+        const backendPath_fl = `.${PROJECT_PATH}/backend`;
 
-         // 7. Ask if user wants to configure .env file. If yes, configure. Else, create with default values.
+         // 7. Copy template directory with it's contents based on selected database
+         await runWithSpinner(
+          whiteBright("COPYING TEMPLATE DIRECTORY"),
+          async () => {
+            await copyDirectory(join(TEMPLATES_DIR, 'backend', BACKEND, DATABASE), backendPath_fl);
+          }
+        );
 
-         // 8. Copy template directory with it's contents based on selected database
+         // 8. Copy requirements.txt file
+         await runWithSpinner(
+          whiteBright("COPYING REQUIREMENTS.TXT"),
+          async () => {
+            await copyFile(join(TEMPLATES_DIR, 'backend', BACKEND, DATABASE, 'requirements.txt'), `.${PROJECT_PATH}/backend/requirements.txt`);
+          }
+        );
 
-         // 8. Install relevant packages 
-         
+         // 9. Install relevant packages using pip install -r requirements.txt
+        await runWithSpinner('Installing backend packages...', async () => {
+          const execPromise = promisify(exec);
+          const command = PKG_MGR_BK.install();
+          await execPromise(command, { cwd: `.${PROJECT_PATH}/backend`, shell: platform() === 'win32' ? process.env.ComSpec : '/bin/sh' });
+        });
+        console.log(greenBright("\nBACKEND CREATED!"));
        
       break;
       case 'FASTAPI':
@@ -599,15 +416,49 @@ const createBackend = async () => {
          await mkdir(`.${PROJECT_PATH}/backend`, { recursive: true });
 
          // 5. Create virtual environment 
-          PKG_MGR.createVirtualEnv('.venv');
+         await runWithSpinner(whiteBright("CREATING VIRTUAL ENVIRONMENT"), async () => {
+           const createVenvCmd = PKG_MGR_BK.createVirtualEnv('.venv');
+           const execPromise = promisify(exec);
+           await execPromise(createVenvCmd, { cwd: `.${PROJECT_PATH}/backend`, shell: platform() === 'win32' ? process.env.ComSpec : '/bin/sh' });
+         });
 
-         // 6. Activate virtual environment
+         // 6. Ask if user wants to configure .env file. If yes, configure. Else, create with default values.
+        ENV_CHOICE = await prompts.select({
+          message: `Do you want to configure your environment variables right now? (recommended):
+          Or do it later?`,
+          options: [
+            {label: "Yes (Do it now)", value: "Yes"},
+            {label: "No (I'll do it later)", value: "No"}
+          ],
+        })
+        if (prompts.isCancel(ENV_CHOICE)) return cancel() 
+        
+        const fastapi_pkg = await dbConfigurations();
+        const backendPath_fa = `.${PROJECT_PATH}/backend`;
 
-         // 7. Ask if user wants to configure .env file. If yes, configure. Else, create with default values.
+         // 7. Copy template directory with it's contents based on selected database
+         await runWithSpinner(
+          whiteBright("COPYING TEMPLATE DIRECTORY"),
+          async () => {
+            await copyDirectory(join(TEMPLATES_DIR, 'backend', BACKEND, DATABASE), backendPath_fa);
+          }
+        );
 
-         // 8. Copy template directory with it's contents based on selected database
+         // 8. Copy requirements.txt file
+         await runWithSpinner(
+          whiteBright("COPYING REQUIREMENTS.TXT"),
+          async () => {
+            await copyFile(join(TEMPLATES_DIR, 'backend', BACKEND, DATABASE, 'requirements.txt'), `.${PROJECT_PATH}/backend/requirements.txt`);
+          }
+        );
 
-         // 8. Install relevant packages 
+         // 9. Install relevant packages using pip install -r requirements.txt
+        await runWithSpinner('Installing backend packages...', async () => {
+          const execPromise = promisify(exec);
+          const command = PKG_MGR_BK.install();
+          await execPromise(command, { cwd: `.${PROJECT_PATH}/backend`, shell: platform() === 'win32' ? process.env.ComSpec : '/bin/sh' });
+        });
+        console.log(greenBright("\nBACKEND CREATED!"));
 
       break;
     }
@@ -617,9 +468,10 @@ const createBackend = async () => {
   }
 }
 
+// Frontend Creation
 const createFrontend = async () => {
   if (isTerminating) return;
-  console.log(whiteBright("\nCREATING FRONTEND"))
+  console.log(whiteBright("\nCREATING FRONTEND\n"))
 
   const baseTech = await prompts.select({
       message: 'Please pick a frontend framework:',
@@ -639,21 +491,77 @@ const createFrontend = async () => {
       {label: 'No', value: 'No'}
     ]
   })
-  
+  if (prompts.success) return;
   FRONTEND = tsOption === 'Yes' ? (baseTech.toLowerCase() + '-ts') : baseTech.toLowerCase();
-  console.log(FRONTEND, "FAHAD");
+  
+  const cmd = PKG_MGR_FD.create(`frontend ${PKG_MGR_FD.manager === 'npm' ? '--' : ''} --template ${FRONTEND}`);
+  console.log("\n");
+  await runWithSpinner(whiteBright('CREATING FRONTEND FOLDER WITH VITE'),
+      async () => {
+      const execPromise = promisify(exec);
+      await execPromise(
+      cmd,
+        { 
+          cwd: `.${PROJECT_PATH}`,
+        }
+      );
+    }
+    );
 
-  const cmd = PKG_MGR.create(`frontend ${PKG_MGR.manager === 'npm' ? '--' : ''} --template ${FRONTEND}`);
-  await runCommand(cmd, `.${PROJECT_PATH}`, 'Creating frontend folder with Vite..', 'Successfully created frontend folder', 'Error creating frontend folder')
+  // Installing Tailwind
+  await runWithSpinner(
+  whiteBright("INSTALLING TAILWINDCSS"),
+  async () => {
+    const execPromise = promisify(exec);
+    await execPromise(
+      PKG_MGR_FD.install(['tailwindcss', '@tailwindcss/vite']),
+      { 
+        cwd: `.${PROJECT_PATH}/frontend`,
+      }
+    );
+  }
+  );
+
   
-  console.log(whiteBright("CONFIGURING TAILWINDCSS"));
-  await runCommand(PKG_MGR.install(['tailwindcss', '@tailwindcss/vite']), `.${PROJECT_PATH}/frontend`, 'Installing tailwindcss..', 'Successfully installed tailwindcss with vite', 'Error installing tailwindcss')
-  
-  const fileName = FRONTEND_TECHNOLOGIES[baseTech];
+  const fileName = FRONTEND_FRAMEWORKS[baseTech]['CSS_FILE'];
   if (!fileName) {
-    // handle Lit projects - TO-DO
+    // handle Lit projects - TO-DO LATER
   } 
-  createFile(`.${PROJECT_PATH}/frontend/src/${fileName}`, '@import "tailwindcss;"');
+  createFile(`.${PROJECT_PATH}/frontend/src/${fileName}`, '@import "tailwindcss";');
+
+  await copyFile(  // For backend svg
+    join(TEMPLATES_DIR, 'assets', `${BACKEND.toLowerCase()}.svg`), 
+    `.${PROJECT_PATH}/frontend/src/assets/backend.svg`
+  );
+
+  await copyFile(  // For database svg
+    join(TEMPLATES_DIR, 'assets', `${DATABASE.toLowerCase()}.svg`), 
+    `.${PROJECT_PATH}/frontend/src/assets/database.svg`
+  );
+
+  await runWithSpinner(
+    whiteBright("CREATING API CONNECTIONS..."),
+    async () => {
+      await copyDirectory(join(TEMPLATES_DIR, 'frontend', FRONTEND.toUpperCase()), `.${PROJECT_PATH}/frontend`);
+    }
+  );
+
+  await runWithSpinner(
+    whiteBright("FINAL INSTALLATIONS..."),
+    async () => {
+      const execPromise = promisify(exec);
+      await execPromise(PKG_MGR_FD.install(), { cwd: `.${PROJECT_PATH}/frontend`});
+    }
+  );
+
+  console.log(greenBright("\nFRONTEND CREATED"));
+
+  console.log(dim(`For starting your project: 
+  1) cd frontend && npm install && npm run dev
+  2) cd backend && npm run dev
+    `))
+
+  console.log(whiteBright("Happy Coding!"))
 
 }
 
@@ -733,12 +641,12 @@ ${blueBright('---------------------------- Supported Technologies --------------
     if (prompts.isCancel(DATABASE)) return cancel(); 
 
   // 4. Ask For Package Manager
-   const pkg_mgr = await prompts.select({
-    message: 'Please select a package manager:',
-    options: Object.keys(PACKAGE_MANAGERS).map((db) => {
-      const color = PACKAGE_MANAGERS[`${db}`]['COLOR'];
+   const pkg_mgr_bk = await prompts.select({
+    message: 'Please select a package manager for handling your backend:',
+    options: Object.keys(PACKAGE_MANAGERS).map((pkg) => {
+      const color = PACKAGE_MANAGERS[`${pkg}`]['COLOR'];
       return { 
-      label: color(db), value: db, 
+      label: color(pkg), value: pkg, 
     }}),
       validate: (value) => {
         if (value === "pip" && BACKEND === "NODEJS") {
@@ -748,9 +656,20 @@ ${blueBright('---------------------------- Supported Technologies --------------
         }
       }
     })
-    if (prompts.isCancel(pkg_mgr)) return cancel();
+    if (prompts.isCancel(pkg_mgr_bk)) return cancel();
 
-    PKG_MGR = new PackageManagerCommands(pkg_mgr);
+    const pkg_mgr_fd = await prompts.select({
+    message: 'Please select a package manager for handling your frontend:',
+    options: Object.keys(PACKAGE_MANAGERS).filter((pkg) => pkg !== 'pip').map((pkg) => {
+      const color = PACKAGE_MANAGERS[`${pkg}`]['COLOR'];
+      return { 
+      label: color(pkg), value: pkg,
+    }})
+    })
+    if (prompts.isCancel(pkg_mgr_fd)) return cancel();
+
+    PKG_MGR_BK = new PackageManagerCommands(pkg_mgr_bk);
+    PKG_MGR_FD = new PackageManagerCommands(pkg_mgr_fd);
   
   await createBackend();
   await createFrontend();
