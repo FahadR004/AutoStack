@@ -17,7 +17,7 @@ def autostack():
         If you're reading this message, it means your frontend and backend are completely connected!
         You are ready to create your next big project!
 """
-    return {"message": message, "backend": "Flask", "database": "MySQL", "filepath": 'backend/main.py'}
+    return {"message": message, "backend": "FastAPI", "database": "PostgreSQL", "filepath": 'backend/main.py'}
 
 
 # Example User REST APIs

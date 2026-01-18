@@ -18,12 +18,12 @@ def serialize_doc(doc):
 
 @router.get("/", status_code=status.HTTP_200_OK)
 async def autostack():
-    message = """
+    message = """ 
         Congrats! You have successfully set up your full-stack project!
-        If you're reading this message, it means your frontend and backend are connected and running!
-    """
-    return {"message": message}
-
+        If you're reading this message, it means your frontend and backend are completely connected!
+        You are ready to create your next big project!
+"""
+    return {"message": message, "backend": "FastAPI", "database": "MongoDB", "filepath": 'backend/main.py'}
 
 # Example User REST APIs
 @router.get("/get-users", status_code=status.HTTP_200_OK)
