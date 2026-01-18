@@ -18,19 +18,19 @@ Get your full-stack application up and running with a single command:
 
 ```bash
 # Using npm (npm 7+)
-npm create autostack my-app
+npm create autostack 
 
 # Using npx
-npx create-autostack my-app
+npx create-autostack 
 
 # Using yarn
-yarn create autostack my-app
+yarn create autostack 
 
 # Using pnpm
-pnpm create autostack my-app
+pnpm create autostack 
 
 # Using bun
-bun create autostack my-app
+bun create autostack 
 ```
 
 Then follow the interactive prompts to choose your tech stack!
@@ -86,7 +86,7 @@ Then follow the interactive prompts to choose your tech stack!
 AutoStack is designed to be run directly without installation:
 
 ```bash
-npm create autostack my-app
+npm create autostack 
 ```
 
 This will:
@@ -99,7 +99,7 @@ This will:
 
 ### Project Structure
 
-After scaffolding, your project will have the following structure:
+After scaffolding, your project will have the following structure, 
 
 ```
 my-app/
@@ -108,13 +108,20 @@ my-app/
 │   ├── public/
 │   ├── package.json
 │   └── vite.config.js
-├── backend/
+├── backend/ // If you picked a JS backend
 │   ├── src/
 │   │   ├── models/
 │   │   ├── routes/
 │   │   ├── controllers/
 │   │   ├── config/
 │   │   └── index.js
+│   ├── .env
+│   ├── package.json
+│   └── node_modules/
+| OR 
+├── backend/ // Else you picked a Python backend
+│   ├── main.py
+|   ├── ... 
 │   ├── .env
 │   ├── package.json
 │   └── node_modules/
@@ -177,7 +184,7 @@ cd frontend && npm run dev
 
 ## 🔮 Roadmap
 
-I will working to make AutoStack better! Here's what's coming:
+I will be working to make AutoStack better! Here's what's coming:
 
 ### Coming Soon
 - 🎯 Django support
@@ -188,7 +195,7 @@ I will working to make AutoStack better! Here's what's coming:
 - 🎯 Authentication templates
 - 🎯 GraphQL support
 
-There' s a lot more I can do that I haven't yet implemented and with more support and more people, I am sure that this project could become insanely popular and a core part of any full-stack project!
+There's a lot more I can do that I haven't yet implemented, and with more support and more people, I am sure that this project could become a core part of any full-stack project!
 
 ### Future Possibilities
 The sky's the limit! I envision AutoStack supporting every major framework and helping developers start projects in any tech stack imaginable.
