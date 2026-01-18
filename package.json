@@ -36,14 +36,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/FahadR004/AutoMERN.git"
+    "url": "git+https://github.com/FahadR004/AutoStack.git"
   },
   "author": "Fahad Rasheed",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/FahadR004/AutoMERN/issues"
+    "url": "https://github.com/FahadR004/AutoStack/issues"
   },
-  "homepage": "https://github.com/FahadR004/AutoMERN#readme",
+  "homepage": "https://github.com/FahadR004/AutoStack#readme",
   "dependencies": {
     "@clack/prompts": "^0.11.0",
     "figlet": "^1.9.4",
