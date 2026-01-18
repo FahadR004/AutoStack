@@ -127,9 +127,6 @@ const __dirname = dirname(__filename);
 const TEMPLATES_DIR = join(__dirname, '../templates');
 const CWD = process.cwd();
 
-// const templatePath = join(TEMPLATES_DIR, stack, 'backend/server.js');
-// const destPath = join(PROJECT_PATH, 'backend/server.js');
-
 let PROJECT_NAME;
 let PROJECT_PATH;
 let FRONTEND;
@@ -557,8 +554,8 @@ const createFrontend = async () => {
   console.log(greenBright("\nFRONTEND CREATED"));
 
   console.log(dim(`For starting your project: 
-  1) cd frontend && npm install && npm run dev
-  2) cd backend && npm run dev
+  1) cd frontend && npm run dev
+  2) ${BACKEND === 'NODEJS' ? 'cd backend && npm run dev' : 'After activating virtual environment,cd backend && run python main.py'}
     `))
 
   console.log(whiteBright("Happy Coding!"))

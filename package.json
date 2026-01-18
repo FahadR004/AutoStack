@@ -5,7 +5,7 @@
   "type": "module",
   
   "bin": {
-    "create-autostack": "./bin/cli.js"
+    "create-autostack": "./bin/index.js"
   },
   
   "files": [
@@ -24,7 +24,15 @@
     "generator",
     "vite",
     "react",
-    "python"
+    "python",
+    "vue",
+    "vite",
+    "solid",
+    "mongodb",
+    "postgresql",
+    "mysql",
+    "typescript",
+    "fastapi"
   ],
   "repository": {
     "type": "git",
