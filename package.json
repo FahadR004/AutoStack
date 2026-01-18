@@ -1,19 +1,16 @@
 {
   "name": "create-autostack",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Scaffold full-stack applications with a single command",
   "type": "module",
-  
   "bin": {
     "create-autostack": "./bin/index.js"
   },
-  
   "files": [
     "bin",
     "lib",
     "templates"
   ],
-  
   "keywords": [
     "scaffolding",
     "cli",
