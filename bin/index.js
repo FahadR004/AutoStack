@@ -468,7 +468,13 @@ const createBackend = async () => {
 // Frontend Creation
 const createFrontend = async () => {
   if (isTerminating) return;
-  console.log(whiteBright("\nCREATING FRONTEND\n"))
+  console.log(whiteBright("\nCREATING FRONTEND\n"));
+
+  if (PKG_MGR_FD.manager === 'pip') {
+    console.error(red('Error: pip cannot be used for frontend projects'));
+    terminate();
+    return;
+  }
 
   const baseTech = await prompts.select({
       message: 'Please pick a frontend framework:',
