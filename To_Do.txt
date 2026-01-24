@@ -1,0 +1,23 @@
+If are reading this and want to contribute on this project, first of all thank you! It means a lot to me. 
+Secondly, to work on this project, you can create a branch titled according to the names given below and submit a PR for the following:
+
+Features:
+1) Use mri library to pass in arguments for project_name, frontend and backend tech names and pkg mgr's names (mri)
+For example, npm create autostack -name=project_name -bk=nodejs -fr=react-ts -pf=npm -pb=yarn OR
+npm create autostack -name=project_name -bk=nodejs -fr=react-ts -pkg=npm
+Also, add help message.
+npm create autostack --help
+2) Add Django Templates  (django)
+3) Add NextJS Templates (nextjs)
+4) Add NestJS Templates (nestjs)
+5) Add Laravel Templates (php-laravel)
+6) Add Ruby on Rails Templates (ruby-on-rails)
+6) Add Angular Templates (angular)
+7) Add Lit Templates (lit)
+8) Add Qwik Templates (qwik)
+9) Add Bootstrap Templates (bootstrap) # This will require you to ask the user how they would like to configure their CSS
+
+Code Work: 
+1) Separate files for the createFrontend and createBackend functions. These will be added in lib folder. (cw-diff-files)
+2) Convert project to TypeScript (cw-typescript)
+3) Separate constants in a different file (cw-constant)
